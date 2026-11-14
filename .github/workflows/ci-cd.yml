@@ -1,0 +1,71 @@
+name: Multi-Stage CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  static-lint:
+    name: Stage 1 - Static Linter Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Run Static Linter Checks
+        run: |
+          echo "Checking JavaScript syntax and static rules..."
+          node --check server.js
+          echo "Static linter check passed!"
+
+  unit-testing:
+    name: Stage 2 - Automated Unit Tests
+    runs-on: ubuntu-latest
+    needs: static-lint
+    steps:
+      - name: Pull Repository Code
+        uses: actions/checkout@v7
+
+      - name: Set Up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Install Dependencies & Run Unit Tests
+        run: |
+          npm install
+          npm test
+
+  build-and-report:
+    name: Stage 3 - Build & Deployment Status
+    runs-on: ubuntu-latest
+    needs: unit-testing
+    steps:
+      - name: Pull Repository Code
+        uses: actions/checkout@v7
+
+      - name: Build Production Docker Image
+        run: docker build -t progree-web-app:${{ github.sha }} .
+
+      - name: Log Deployment Status Metrics to Board
+        run: |
+          echo "### 🚀 Deployment Pipeline Execution Board" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pipeline Status** | ✅ Success |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit SHA** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Triggered By** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Docker Image** | \`progree-web-app:${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
